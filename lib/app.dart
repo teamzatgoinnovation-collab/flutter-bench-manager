@@ -34,7 +34,9 @@ class _BenchManagerAppState extends State<BenchManagerApp> {
     return MaterialApp(
       title: 'ZatGo Bench Manager',
       debugShowCheckedModeBanner: false,
-      theme: buildBenchTheme(),
+      theme: buildBenchTheme(brightness: Brightness.light),
+      darkTheme: buildBenchTheme(brightness: Brightness.dark),
+      themeMode: ThemeMode.system,
       home: widget.session.authenticated
           ? AppShell(session: widget.session)
           : LoginPage(session: widget.session),

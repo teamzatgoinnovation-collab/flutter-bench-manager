@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/bench_api.dart';
 import '../../services/session.dart';
+import '../../widgets/m3_bits.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.session});
@@ -47,7 +48,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final settings = await api.fetchSettings();
       final provider =
           (settings['settings'] as Map?)?['cloudProvider'] as String? ??
-              'digitalocean';
+          'digitalocean';
       setState(() {
         _health = health;
         _apps = apps;
@@ -74,15 +75,19 @@ class _DashboardPageState extends State<DashboardPage> {
       if (env == 'cloud') {
         final settings = await widget.session.api.fetchSettings();
         if (settings['hosted'] == true || settings['sshReady'] != true) {
-          final msg = (settings['sshError'] as String?) ??
+          final msg =
+              (settings['sshError'] as String?) ??
               'Complete Cloud setup in Bench Manager Settings first '
                   '(localhost ops host).';
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(msg)));
           }
           return;
         }
-        final site = (settings['settings'] as Map?)?['doDefaultSite'] as String? ??
+        final site =
+            (settings['settings'] as Map?)?['doDefaultSite'] as String? ??
             widget.session.site;
         await widget.session.setPrefs(env: 'cloud', site: site);
       } else {
@@ -102,21 +107,37 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  (String, StatusTone, IconData) _localStatus(EnvHealth? local) {
+    if (local?.running == true) {
+      return ('Running', StatusTone.success, Icons.check_circle_outline);
+    }
+    return ('Down', StatusTone.error, Icons.cancel_outlined);
+  }
+
+  (String, StatusTone, IconData) _cloudStatus(EnvHealth? cloud) {
+    if (cloud?.running == true) {
+      return ('Running', StatusTone.success, Icons.check_circle_outline);
+    }
+    if (_sshReady == false) {
+      return ('SSH not ready', StatusTone.warning, Icons.key_off_outlined);
+    }
+    return ('Down', StatusTone.error, Icons.cancel_outlined);
+  }
+
   @override
   Widget build(BuildContext context) {
     final local = _health.where((h) => h.env == 'local').firstOrNull;
     final cloud = _health.where((h) => h.env == 'cloud').firstOrNull;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final localSt = _localStatus(local);
+    final cloudSt = _cloudStatus(cloud);
+    final isCloud = widget.session.env == 'cloud';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bench Manager'),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh),
-          ),
           IconButton(
             tooltip: 'Sign out',
             onPressed: () => widget.session.logout(),
@@ -127,42 +148,120 @@ class _DashboardPageState extends State<DashboardPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            SegmentedButton<String>(
-              segments: [
-                const ButtonSegment(value: 'local', label: Text('Local')),
-                ButtonSegment(value: 'cloud', label: Text(_cloudLabel)),
-              ],
-              selected: {widget.session.env},
-              onSelectionChanged: (s) => _switchEnv(s.first),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Site ${widget.session.site}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SectionTitle('Environment'),
+                    const SizedBox(height: 12),
+                    SegmentedButton<String>(
+                      segments: [
+                        const ButtonSegment(
+                          value: 'local',
+                          label: Text('Local'),
+                          icon: Icon(Icons.computer_outlined, size: 18),
+                        ),
+                        ButtonSegment(
+                          value: 'cloud',
+                          label: Text(_cloudLabel),
+                          icon: const Icon(Icons.cloud_outlined, size: 18),
+                        ),
+                      ],
+                      selected: {widget.session.env},
+                      onSelectionChanged: (s) => _switchEnv(s.first),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.session.site,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        StatusChip(
+                          label: isCloud ? _cloudLabel : 'Local',
+                          tone: StatusTone.info,
+                          icon: isCloud
+                              ? Icons.cloud_outlined
+                              : Icons.computer_outlined,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: _loading ? null : _load,
+                      icon: _loading
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: scheme.onPrimary,
+                              ),
+                            )
+                          : const Icon(Icons.refresh, size: 18),
+                      label: Text(_loading ? 'Refreshing…' : 'Refresh status'),
+                    ),
+                  ],
+                ),
               ),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.error_outline, color: scheme.error, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: scheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
-            if (_loading) ...[
-              const SizedBox(height: 24),
+            if (_loading && _health.isEmpty) ...[
+              const SizedBox(height: 32),
               const Center(child: CircularProgressIndicator()),
             ] else ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              const SectionTitle('Health'),
+              const SizedBox(height: 10),
               _StatCard(
                 title: 'Active env',
-                value: widget.session.env == 'cloud' ? _cloudLabel : 'Local',
+                value: isCloud ? _cloudLabel : 'Local',
                 subtitle: widget.session.site,
+                status: StatusChip(
+                  label: 'Selected',
+                  tone: StatusTone.info,
+                  icon: Icons.radio_button_checked,
+                ),
               ),
               const SizedBox(height: 10),
               _StatCard(
                 title: 'Local backend',
                 value: local?.running == true ? 'Running' : 'Down',
                 subtitle: local?.container,
+                status: StatusChip(
+                  label: localSt.$1,
+                  tone: localSt.$2,
+                  icon: localSt.$3,
+                ),
               ),
               const SizedBox(height: 10),
               _StatCard(
@@ -171,28 +270,53 @@ class _DashboardPageState extends State<DashboardPage> {
                     ? 'Running'
                     : (_sshReady == false ? 'SSH not ready' : 'Down'),
                 subtitle: cloud?.sshHostRedacted ?? cloud?.container,
+                status: StatusChip(
+                  label: cloudSt.$1,
+                  tone: cloudSt.$2,
+                  icon: cloudSt.$3,
+                ),
               ),
               const SizedBox(height: 10),
               _StatCard(
                 title: 'Installed apps',
                 value: '${_apps.length}',
                 subtitle: widget.session.site,
+                status: StatusChip(
+                  label: _apps.isEmpty ? 'None' : '${_apps.length} apps',
+                  tone: _apps.isEmpty ? StatusTone.neutral : StatusTone.success,
+                  icon: Icons.extension_outlined,
+                ),
               ),
               if (_apps.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                Text('Apps', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _apps
-                      .map(
-                        (a) => Chip(
-                          label: Text(a),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      )
-                      .toList(),
+                const SectionTitle('Apps on site'),
+                const SizedBox(height: 10),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _apps
+                          .map(
+                            (a) => Chip(
+                              avatar: Icon(
+                                Icons.extension_outlined,
+                                size: 16,
+                                color: scheme.primary,
+                              ),
+                              label: Text(a),
+                              visualDensity: VisualDensity.compact,
+                              side: BorderSide(
+                                color: scheme.outlineVariant.withValues(
+                                  alpha: 0.7,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -208,11 +332,13 @@ class _StatCard extends StatelessWidget {
     required this.title,
     required this.value,
     this.subtitle,
+    this.status,
   });
 
   final String title;
   final String value;
   final String? subtitle;
+  final Widget? status;
 
   @override
   Widget build(BuildContext context) {
@@ -223,14 +349,27 @@ class _StatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ?status,
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(
-              title,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(value, style: theme.textTheme.headlineSmall),
             if (subtitle != null && subtitle!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
