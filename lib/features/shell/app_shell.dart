@@ -30,6 +30,8 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: pages[_index],
       bottomNavigationBar: NavigationBar(
+        height: 72,
+        elevation: 0,
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
