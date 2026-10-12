@@ -48,7 +48,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final settings = await api.fetchSettings();
       final provider =
           (settings['settings'] as Map?)?['cloudProvider'] as String? ??
-          'digitalocean';
+          'hetzner';
       setState(() {
         _health = health;
         _apps = apps;
@@ -57,7 +57,6 @@ class _DashboardPageState extends State<DashboardPage> {
           'hetzner' => 'Hetzner',
           'azure' => 'Azure',
           'aws' => 'AWS',
-          'digitalocean' => 'DigitalOcean',
           _ => 'Cloud',
         };
       });

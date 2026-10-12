@@ -28,7 +28,7 @@ Login: Bench Manager URL + token from `Clients/web/bench-manager/.env.local`.
 | Tab | Actions |
 |-----|---------|
 | Home | Env health, Local / Cloud switch, app count |
-| Sites | List + select site (`erp.zatgo.online`) |
+| Sites | List + select site (`accounting.zatgoinnovation.com`) |
 | Apps | Installed apps for active env/site |
 | Auto | list-apps, migrate, clear-cache, clear-website-cache, build --app |
 

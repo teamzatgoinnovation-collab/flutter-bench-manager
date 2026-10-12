@@ -10,7 +10,7 @@ class BenchSession extends ChangeNotifier {
 
   bool authenticated = false;
   String env = 'local';
-  String site = 'erp.zatgo.online';
+  String site = 'accounting.zatgoinnovation.com';
   String? lastError;
 
   BenchApi get api => _api;
@@ -24,7 +24,7 @@ class BenchSession extends ChangeNotifier {
         );
     final token = prefs.getString('bm_token');
     env = prefs.getString('bm_env') ?? 'local';
-    site = prefs.getString('bm_site') ?? 'erp.zatgo.online';
+    site = prefs.getString('bm_site') ?? 'accounting.zatgoinnovation.com';
     _api.baseUrl = base;
     _api.token = token;
     if (token != null && token.isNotEmpty) {

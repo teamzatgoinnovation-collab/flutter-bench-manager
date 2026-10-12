@@ -98,7 +98,7 @@ class BenchApi {
     return SessionInfo(
       authenticated: data['authenticated'] == true,
       env: (prefs['env'] as String?) ?? 'local',
-      site: (prefs['site'] as String?) ?? 'erp.zatgo.online',
+      site: (prefs['site'] as String?) ?? 'accounting.zatgoinnovation.com',
     );
   }
 
